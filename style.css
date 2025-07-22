@@ -1,0 +1,73 @@
+body {
+    font-family: Arial, sans-serif;
+    background: url('pexels-asadphoto-457882.jpg') no-repeat center center fixed;
+    background-size: cover;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    max-width: 500px;
+    margin: 40px auto;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 32px 24px;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+}
+h1 {
+    text-align: center;
+    margin-bottom: 32px;
+    color: #ffb300; /* Sun yellow */
+    text-shadow: 0 2px 8px #fffde7, 0 0 10px #ffd54f;
+}
+h2 {
+    margin-top: 32px;
+    color: #039be5; /* Ocean blue */
+    border-bottom: 1px solid #b3e5fc;
+    padding-bottom: 8px;
+}
+.menu-section {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.menu-section li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #ffe082;
+    font-size: 1.1em;
+}
+.menu-section li:last-child {
+    border-bottom: none;
+}
+.item {
+    color: #222;
+}
+.price {
+    color: #039be5;
+    font-weight: bold;
+}
+.menu-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.menu-buttons button {
+    background: #00bfff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.menu-buttons button:hover {
+    background: #039be5;
+}
+html {
+    scroll-behavior: smooth;
+} 
