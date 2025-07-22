@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guven Restaurant Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 32px 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+        }
+
+        .admin-title {
+            text-align: center;
+            color: #039be5;
+            margin-bottom: 24px;
+        }
+
+        .admin-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .admin-form input,
+        .admin-form select {
+            flex: 1 1 120px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        .admin-form button {
+            background: #00bfff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        .admin-form button:hover {
+            background: #039be5;
+        }
+
+        .admin-list {
+            margin-top: 24px;
+        }
+
+        .admin-list h3 {
+            margin-top: 24px;
+            color: #ffb300;
+        }
+
+        .admin-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .admin-actions button {
+            margin-left: 8px;
+            background: #ff5252;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+        }
+
+        .admin-actions button.edit {
+            background: #00bfff;
+        }
+
+        .admin-actions button:hover {
+            opacity: 0.8;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 320px;
+            margin: 80px auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 32px 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+        }
+
+        .login-form input {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+
+        .login-form button {
+            background: #00bfff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .login-form button:hover {
+            background: #039be5;
+        }
+
+        .login-error {
+            color: #ff5252;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loginSection">
+        <form class="login-form" id="loginForm">
+            <h2 style="text-align:center; color:#039be5;">Admin Login</h2>
+            <input type="text" id="loginUsername" placeholder="Username" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <button type="submit">Login</button>
+            <div class="login-error" id="loginError"></div>
+        </form>
+    </div>
+    <div class="admin-container" id="adminPanel" style="display:none;">
+        <h1 class="admin-title">Guven Restaurant Admin Panel</h1>
+        <form class="admin-form" id="productForm">
+            <input type="text" id="emoji" placeholder="Emoji (e.g. 🍔)" maxlength="2" required>
+            <input type="text" id="name" placeholder="Product Name" required>
+            <input type="number" id="price" placeholder="Price" min="0" step="0.01" required>
+            <select id="category" required>
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+            </select>
+            <button type="submit">Add / Update</button>
+        </form>
+        <div class="admin-list">
+            <h3>Food</h3>
+            <div id="foodList"></div>
+            <h3>Drinks</h3>
+            <div id="drinkList"></div>
+        </div>
+        <div style="margin: 32px 0; display: flex; gap: 16px; justify-content: center;">
+            <button id="exportBtn" style="background:#ffb300; color:#fff;">Bilgileri Dışa Aktar</button>
+            <label for="importInput"
+                style="background:#039be5; color:#fff; border-radius:8px; padding:10px 20px; cursor:pointer;">Bilgileri
+                Yükle
+                <input type="file" id="importInput" accept="application/json" style="display:none;">
+            </label>
+        </div>
+        <hr style="margin:32px 0;">
+        <div class="admin-list">
+            <h3>Admins</h3>
+            <form class="admin-form" id="adminUserForm">
+                <input type="text" id="adminUsername" placeholder="Username" required>
+                <input type="password" id="adminPassword" placeholder="Password" required>
+                <button type="submit">Add / Update Admin</button>
+            </form>
+            <div id="adminUsersList"></div>
+        </div>
+    </div>
+    <script>
+        // --- SHA-256 HASH HELPER ---
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // --- LOGIN LOGIC ---
+        function getAdmins() {
+            let admins = JSON.parse(localStorage.getItem('admins') || '[]');
+            if (admins.length === 0) {
+                admins = [{ username: 'admin', password: 'f8af3e688277b63c8c49e0e26a0b3bf115c13b1d4fc19b3da63e7cb8e7f7f359' }]; // hash of 'guven123' generated by browser
+                localStorage.setItem('admins', JSON.stringify(admins));
+            }
+            return admins;
+        }
+        function setAdmins(admins) {
+            localStorage.setItem('admins', JSON.stringify(admins));
+        }
+        document.getElementById('loginForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUsername').value;
+            const p = document.getElementById('loginPassword').value;
+            // DEBUG LOGS
+            console.log('Kullanıcı adı:', u);
+            console.log('Şifre:', p);
+            const pHash = await hashPassword(p);
+            console.log('Hashlenmiş şifre:', pHash);
+            console.log('Admin listesi:', getAdmins());
+            // LOGIN LOGIC
+            const admins = getAdmins();
+            const found = admins.find(a => a.username === u && a.password === pHash);
+            if (found) {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('adminPanel').style.display = '';
+                renderMenu();
+                renderAdmins();
+            } else {
+                document.getElementById('loginError').textContent = 'Incorrect username or password!';
+            }
+        };
+
+        // --- ADMIN USER MANAGEMENT ---
+        let adminEditMode = null;
+        function renderAdmins() {
+            const admins = getAdmins();
+            const adminUsersList = document.getElementById('adminUsersList');
+            adminUsersList.innerHTML = '';
+            admins.forEach((admin, idx) => {
+                adminUsersList.innerHTML += `<div class='admin-item'><span>👤 ${admin.username}</span><span class='admin-actions'><button class='edit' onclick='editAdmin(${idx})'>Edit</button><button onclick='deleteAdmin(${idx})'>Delete</button></span></div>`;
+            });
+        }
+        document.getElementById('adminUserForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+            if (!username || !password) return;
+            let admins = getAdmins();
+            const passwordHash = await hashPassword(password);
+            if (adminEditMode !== null) {
+                admins[adminEditMode] = { username, password: passwordHash };
+                adminEditMode = null;
+            } else {
+                admins.push({ username, password: passwordHash });
+            }
+            setAdmins(admins);
+            this.reset();
+            renderAdmins();
+        };
+        window.editAdmin = function(idx) {
+            const admins = getAdmins();
+            document.getElementById('adminUsername').value = admins[idx].username;
+            document.getElementById('adminPassword').value = '';
+            adminEditMode = idx;
+        };
+        window.deleteAdmin = function(idx) {
+            let admins = getAdmins();
+            if (admins.length === 1) {
+                alert('At least one admin is required.');
+                return;
+            }
+            admins.splice(idx, 1);
+            setAdmins(admins);
+            renderAdmins();
+        };
+
+        // Sample fallback data
+        const sampleMenu = {
+            food: [
+                { "emoji": "🍗", "name": "Grilled Chicken", "price": "50.00" },
+                { "emoji": "🥙", "name": "Beef Kebab", "price": "14.99" },
+                { "emoji": "🥦", "name": "Vegetable Stew", "price": "9.99" },
+                { "emoji": "🍲", "name": "Lentil Soup", "price": "5.99" },
+                { "emoji": "🍔", "name": "Classic Burger", "price": "8.99" },
+                { "emoji": "🧀", "name": "Cheeseburger", "price": "9.49" },
+                { "emoji": "🍗", "name": "Chicken Burger", "price": "8.49" },
+                { "emoji": "🍟", "name": "French Fries", "price": "3.99" },
+                { "emoji": "🥔", "name": "Potato Chips", "price": "2.99" },
+                { "emoji": "🍪", "name": "Chocolate Chip Cookie", "price": "2.50" },
+                { "emoji": "🍪", "name": "Oatmeal Raisin Cookie", "price": "2.50" },
+                { "emoji": "🍰", "name": "Baklava", "price": "4.00" }
+            ],
+            drink: [
+                { "emoji": "🥤", "name": "Ayran", "price": "2.50" },
+                { "emoji": "☕", "name": "Turkish Tea", "price": "1.50" },
+                { "emoji": "💧", "name": "Mineral Water", "price": "1.00" },
+                { "emoji": "🥤", "name": "Cola", "price": "2.00" },
+                { "emoji": "🍺", "name": "Beer", "price": "5.00" },
+                { "emoji": "🍷", "name": "Red Wine", "price": "7.00" },
+                { "emoji": "🍷", "name": "White Wine", "price": "7.00" },
+                { "emoji": "🥃", "name": "Raki", "price": "8.00" },
+                { "emoji": "🍹", "name": "Mojito", "price": "6.50" },
+                { "emoji": "🍹", "name": "Pina Colada", "price": "7.00" },
+                { "emoji": "🍸", "name": "Margarita", "price": "7.50" },
+                { "emoji": "🍹", "name": "Bloody Mary", "price": "7.00" }
+            ]
+        };
+
+        // Helper to get and set menu data in localStorage
+        function getMenu() {
+            let data;
+            try {
+                data = JSON.parse(localStorage.getItem('menuData'));
+            } catch (e) { }
+            if (!data || (!data.food.length && !data.drink.length)) {
+                // If no data, load sample menu
+                localStorage.setItem('menuData', JSON.stringify(sampleMenu));
+                return sampleMenu;
+            }
+            return data;
+        }
+        function setMenu(data) {
+            localStorage.setItem('menuData', JSON.stringify(data));
+        }
+
+        // Render menu items
+        function renderMenu() {
+            const menu = getMenu();
+            const foodList = document.getElementById('foodList');
+            const drinkList = document.getElementById('drinkList');
+            foodList.innerHTML = '';
+            drinkList.innerHTML = '';
+            menu.food.forEach((item, idx) => {
+                foodList.innerHTML += `<div class="admin-item"><span>${item.emoji} ${item.name} - $${item.price}</span><span class="admin-actions"><button class="edit" onclick="editItem('food',${idx})">Edit</button><button onclick="deleteItem('food',${idx})">Delete</button></span></div>`;
+            });
+            menu.drink.forEach((item, idx) => {
+                drinkList.innerHTML += `<div class="admin-item"><span>${item.emoji} ${item.name} - $${item.price}</span><span class="admin-actions"><button class="edit" onclick="editItem('drink',${idx})">Edit</button><button onclick="deleteItem('drink',${idx})">Delete</button></span></div>`;
+            });
+        }
+
+        // Add or update product
+        let editMode = null;
+        document.getElementById('productForm').onsubmit = function (e) {
+            e.preventDefault();
+            const emoji = document.getElementById('emoji').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const price = parseFloat(document.getElementById('price').value).toFixed(2);
+            const category = document.getElementById('category').value;
+            if (!emoji || !name || isNaN(price)) return;
+            const menu = getMenu();
+            if (editMode) {
+                menu[editMode.category][editMode.idx] = { emoji, name, price };
+                editMode = null;
+            } else {
+                menu[category].push({ emoji, name, price });
+            }
+            setMenu(menu);
+            this.reset();
+            renderMenu();
+        };
+
+        // Edit item
+        window.editItem = function (category, idx) {
+            const menu = getMenu();
+            const item = menu[category][idx];
+            document.getElementById('emoji').value = item.emoji;
+            document.getElementById('name').value = item.name;
+            document.getElementById('price').value = item.price;
+            document.getElementById('category').value = category;
+            editMode = { category, idx };
+        };
+
+        // Delete item
+        window.deleteItem = function (category, idx) {
+            const menu = getMenu();
+            menu[category].splice(idx, 1);
+            setMenu(menu);
+            renderMenu();
+        };
+
+        // --- EXPORT / IMPORT ---
+        document.getElementById('exportBtn').onclick = function() {
+            const data = {
+                menu: getMenu(),
+                admins: getAdmins()
+            };
+            function arrayToSingleLine(arr) {
+                return '[\n' + arr.map(obj => '  ' + JSON.stringify(obj)).join(',\n') + '\n]';
+            }
+            let json = '{\n';
+            json += '  "menu": {\n';
+            json += '    "food": ' + arrayToSingleLine(data.menu.food) + ',\n';
+            json += '    "drink": ' + arrayToSingleLine(data.menu.drink) + '\n';
+            json += '  },\n';
+            json += '  "admins": ' + arrayToSingleLine(data.admins) + '\n';
+            json += '}';
+            const blob = new Blob([json], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'guven-restaurant-menu.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+        document.getElementById('importInput').onchange = function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (evt) {
+                try {
+                    const data = JSON.parse(evt.target.result);
+                    if (data.menu && data.admins) {
+                        setMenu(data.menu);
+                        setAdmins(data.admins);
+                        renderMenu();
+                        renderAdmins();
+                        alert('Menü ve adminler başarıyla yüklendi!');
+                    } else {
+                        alert('Geçersiz dosya formatı!');
+                    }
+                } catch (err) {
+                    alert('Dosya okunamadı veya bozuk!');
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        // Initial render (only if already logged in)
+        if (document.getElementById('adminPanel').style.display !== 'none') {
+            renderMenu();
+            renderAdmins();
+        }
+    </script>
+</body>
+
+</html>
